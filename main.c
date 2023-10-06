@@ -128,7 +128,7 @@ EnemyTypeData enemyTypeData[] =
     {
         {
             // zombie
-            .hp = 3,
+            .hp = 1,
             .speed = 360,
             .fireRate = 0,
             .baseWaveSize = 4,
@@ -137,16 +137,16 @@ EnemyTypeData enemyTypeData[] =
         },
         {
             // zombie gunner
-            .hp = 3,
+            .hp = 1,
             .speed = 400,
             .fireRate = 1,
             .baseWaveSize = 2,
-            .waveScaling = 4,
+            .waveScaling = 2,
             .size = 20,
         },
         {
             // baricade
-            .hp = 30,
+            .hp = 5,
             .speed = 800,
             .fireRate = 0,
             .baseWaveSize = 1,
@@ -159,7 +159,7 @@ EnemyTypeData enemyTypeData[] =
             .speed = 400,
             .fireRate = 1,
             .baseWaveSize = 1,
-            .waveScaling = 2,
+            .waveScaling = 0,
             .size = 20,
         }};
 
@@ -167,14 +167,18 @@ EnemyType enemyTypeLevel1[] = {
     Enemy_Type_Zombie,
     Enemy_Type_Zombie_Gunner,
     Enemy_Type_Zombie,
-    Enemy_Type_Zombie_Gunner,
+    Enemy_Type_Zombie,
+    Enemy_Type_Barricade,
 };
 
 EnemyType enemyTypeLevel2[] = {
     Enemy_Type_Witch,
-    Enemy_Type_Witch,
     Enemy_Type_Barricade,
     Enemy_Type_Barricade,
+    Enemy_Type_Zombie_Gunner,
+    Enemy_Type_Zombie_Gunner,
+    Enemy_Type_Zombie,
+    Enemy_Type_Zombie,
 };
 
 // Pickupp
@@ -203,6 +207,8 @@ int pickuppNum = 0;
 
 int waveCount = 0;
 int waveHoldeValue = 0;
+
+int score = 0;
 
 // funktioner
 //------------------------------------------------------------------------------
@@ -421,7 +427,7 @@ void UppdateBulet(int *drawBullet, Bullet *bullet, int maxBullets, int screenWid
 
 void spawnUppgrade(Enemy *enemyArray, Pickupp *pickuppArray, int *pickuppAlive, int k)
 {
-    int chanceForUppgrade = RandomIntRange(0, 0);
+    int chanceForUppgrade = RandomIntRange(0, 4);
 
     if (chanceForUppgrade == 0)
     {
@@ -435,18 +441,24 @@ void spawnUppgrade(Enemy *enemyArray, Pickupp *pickuppArray, int *pickuppAlive, 
     }
 }
 
-void PickUppPickupp(Pickupp *pickuppArray, Vector2 playerPos, int i, int *pickuppAlive)
+float PickUppPickupp(Pickupp *pickuppArray, Vector2 playerPos, int i, int *pickuppAlive, float bulletFireRate)
 {
     if (pickuppAlive[i] == 1)
     {
         if (CheckCollisionCircles(pickuppArray[i].pos, 10, playerPos, 40))
         {
             pickuppAlive[i] = 0;
+            score += 200;
+            if (bulletFireRate > 0.2)
+            {
+                bulletFireRate -= 0.05;
+            }
         }
     }
+    return bulletFireRate;
 }
 
-void UppdatePickup(Pickupp *pickuppArray, int *pickuppAlive, Vector2 playerPos)
+float UppdatePickup(Pickupp *pickuppArray, int *pickuppAlive, Vector2 playerPos, float bulletFireRate)
 {
     Vector2 zombieVelocity = {-1, 0};
     for (int i = 0; i < 5; i++)
@@ -454,13 +466,14 @@ void UppdatePickup(Pickupp *pickuppArray, int *pickuppAlive, Vector2 playerPos)
         if (pickuppAlive[i] == 1)
         {
             pickuppArray[i].pos = Vector2Add(Vector2Scale(Vector2Scale(zombieVelocity, backgrundspeed), GetFrameTime()), pickuppArray[i].pos);
-            PickUppPickupp(pickuppArray, playerPos, i, pickuppAlive);
+            bulletFireRate = PickUppPickupp(pickuppArray, playerPos, i, pickuppAlive, bulletFireRate);
         }
         if (pickuppArray[i].pos.x < -20)
         {
             pickuppAlive[i] = 0;
         }
     }
+    return bulletFireRate;
 }
 
 void DrawPickup(Pickupp *pickuppArray, int *pickuppAlive)
@@ -518,6 +531,7 @@ int CheckBuletHit(int *drawBullet, Bullet *bullet, int maxBullets, Enemy *enemyA
                             {
                                 isEnemyAlive[k] = 0;
                                 spawnUppgrade(enemyArray, pickuppArray, pickuppAlive, k);
+                                score += 100;
                             }
                         }
                     }
@@ -1007,7 +1021,7 @@ int main()
     player.acceleration = 6;
     player.maxSpeed = 0.8;
     player.stopSpeed = 7;
-    player.hp = 113;
+    player.hp = 5;
 
     // Pickupp
     Pickupp pickuppArray[5];
@@ -1043,7 +1057,7 @@ int main()
     int drawBullet[maxBullets];
     int bulletNum = 0;
 
-    float bulletFireRate = 0.5;
+    float bulletFireRate = 0.4f;
     float bulletTimerSet = bulletFireRate;
 
     for (int i = 0; i < maxBullets; i++)
@@ -1179,8 +1193,14 @@ int main()
             {
                 int spawnSlot[2] = {screenHeight / 5, screenHeight};
 
-                enemyNum = spawnEventEnemy(enemyArray, enemyTypeData, enemyNum, isEnemyAlive, difficultyScaleing, enemyTypeLevel1, 3, spawnSlot, screenWidth);
-                enemyNum = spawnEventEnemy(enemyArray, enemyTypeData, enemyNum, isEnemyAlive, difficultyScaleing, enemyTypeLevel2, 3, spawnSlot, screenWidth);
+                if (difficultyScaleing < 1)
+                {
+                    enemyNum = spawnEventEnemy(enemyArray, enemyTypeData, enemyNum, isEnemyAlive, difficultyScaleing, enemyTypeLevel1, 5, spawnSlot, screenWidth);
+                }
+                else
+                {
+                    enemyNum = spawnEventEnemy(enemyArray, enemyTypeData, enemyNum, isEnemyAlive, difficultyScaleing, enemyTypeLevel2, 7, spawnSlot, screenWidth);
+                }
                 testSpawnEnemy = false;
             }
             bulletNum = UpdateEnemy(enemyArray, 100, isEnemyAlive, enemyTypeData, drawBullet, bullet, maxBullets, bulletNum, player.playerPos);
@@ -1204,7 +1224,7 @@ int main()
             gameState = isPlayerDead(player.hp, gameState);
 
             // Pickupp
-            UppdatePickup(pickuppArray, pickuppAlive, player.playerPos);
+            bulletFireRate = UppdatePickup(pickuppArray, pickuppAlive, player.playerPos, bulletFireRate);
 
             // draw
             //------------------------------------------------------------------------------
@@ -1229,9 +1249,12 @@ int main()
             DrawPickup(pickuppArray, pickuppAlive);
 
             // debug
-            DrawFPS(25, 25);
-            DebugMouse();
-            debug(enemyArray, 100, isEnemyAlive, player.playerPos, enemyTypeData);
+            // DrawFPS(25, 25);
+            // DebugMouse();
+            // debug(enemyArray, 100, isEnemyAlive, player.playerPos, enemyTypeData);
+
+            // score
+            DrawText(TextFormat("Score %d", score), screenWidth / 2, screenHeight / 20, 30, RED);
 
             EndDrawing();
         }
@@ -1242,6 +1265,8 @@ int main()
             ClearBackground(BLACK);
 
             DrawText("Game over", screenWidth / 2, screenHeight / 2, 100, RED);
+            DrawText(TextFormat("Score %d", score), screenWidth / 2, screenHeight / 2 - 200, 100, RED);
+
             EndDrawing();
         }
         break;
